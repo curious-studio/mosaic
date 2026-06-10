@@ -62,7 +62,16 @@
             </div>
             <label class="drop-zone" id="dropZone">
               <input id="imageInput" type="file" accept="image/*" />
-              <canvas id="sourcePreview" width="360" height="230" aria-label="Source preview"></canvas>
+              <div class="thumbnail-upload-surface source-preview-surface">
+                <canvas id="sourcePreview" width="360" height="230" aria-label="Source preview"></canvas>
+                <span class="thumbnail-upload-overlay" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 16V4"></path>
+                    <path d="m7 9 5-5 5 5"></path>
+                    <path d="M5 20h14"></path>
+                  </svg>
+                </span>
+              </div>
               <span>Upload source image</span>
             </label>
           </section>
@@ -73,7 +82,7 @@
             </div>
 
             <label class="range-field" for="cellSize">
-              <span>Block size</span>
+              <span>Tile size</span>
               <output id="cellSizeValue">50 px</output>
               <input id="cellSize" type="range" min="0" max="0" value="0" step="1" />
             </label>

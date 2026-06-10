@@ -69,8 +69,9 @@ const DEFAULT_IMAGE_SRC = "gradient-400x400.jpg";
 const DEFAULT_IMAGE_NAME = "gradient-400x400.jpg";
 const PNG_EXPORT_MAX_EDGE = 10000;
 const SVG_CUSTOM_TILE_SCALE = 4;
-const CELL_SIZE_MIN = 5;
-const CELL_SIZE_MAX = 100;
+const BLOCK_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50, 100];
+const CANVAS_SIZE_MIN = 100;
+const CANVAS_SIZE_MAX = 2500;
 const TILE_BASE_SIZE = 96;
 
 const state = {
@@ -97,6 +98,13 @@ const previewCtx = els.sourcePreview.getContext("2d", { alpha: false });
 
 function clamp(value, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
+}
+
+function getImageDimensions(image) {
+  return {
+    width: image?.naturalWidth || image?.videoWidth || image?.width || 0,
+    height: image?.naturalHeight || image?.videoHeight || image?.height || 0
+  };
 }
 
 function lerp(a, b, amount) {
@@ -172,43 +180,7 @@ function setStatus(text) {
   els.statusText.textContent = text;
 }
 
-function greatestCommonDivisor(a, b) {
-  let left = Math.abs(Math.round(a));
-  let right = Math.abs(Math.round(b));
-
-  while (right) {
-    const next = left % right;
-    left = right;
-    right = next;
-  }
-
-  return Math.max(1, left);
-}
-
-function cellSizeDivisors(commonDivisor, min, max) {
-  const options = [];
-  for (let size = min; size <= max; size += 1) {
-    if (commonDivisor % size === 0) options.push(size);
-  }
-  return options;
-}
-
-function getCellSizeOptionsForDimensions(width, height) {
-  const commonDivisor = greatestCommonDivisor(width, height);
-  const preferred = cellSizeDivisors(commonDivisor, CELL_SIZE_MIN, CELL_SIZE_MAX);
-  if (preferred.length) return preferred;
-
-  const fallback = cellSizeDivisors(commonDivisor, 1, CELL_SIZE_MAX);
-  return fallback.length ? fallback : [1];
-}
-
-function getActiveOutputDimensions() {
-  if (state.image) return getOutputDimensions(state.image);
-  const side = Math.min(4000, Math.max(1, Number(state.maxOutput)));
-  return { width: side, height: side };
-}
-
-function closestCellSizeIndex(options, value) {
+function closestOptionIndex(options, value) {
   const target = Number(value);
   return options.reduce((bestIndex, option, index) => {
     const best = options[bestIndex];
@@ -218,9 +190,31 @@ function closestCellSizeIndex(options, value) {
   }, 0);
 }
 
-function refreshCellSizeControl(dimensions = getActiveOutputDimensions()) {
-  const options = getCellSizeOptionsForDimensions(dimensions.width, dimensions.height);
-  const index = closestCellSizeIndex(options, state.cellSize);
+function getCanvasSizeRange(blockSize = state.cellSize) {
+  const min = Math.ceil(CANVAS_SIZE_MIN / blockSize) * blockSize;
+  const max = Math.max(min, Math.floor(CANVAS_SIZE_MAX / blockSize) * blockSize);
+  return { min, max };
+}
+
+function snapCanvasSize(value, blockSize = state.cellSize) {
+  const { min, max } = getCanvasSizeRange(blockSize);
+  const snapped = Math.round(Number(value) / blockSize) * blockSize;
+  return clamp(snapped, min, max);
+}
+
+function refreshCanvasSizeControl() {
+  const { min, max } = getCanvasSizeRange();
+  state.maxOutput = snapCanvasSize(state.maxOutput);
+  els.maxOutput.min = String(min);
+  els.maxOutput.max = String(max);
+  els.maxOutput.step = String(state.cellSize);
+  els.maxOutput.value = String(state.maxOutput);
+  els.maxOutput.title = `Canvas size adjusts in ${state.cellSize}px steps`;
+}
+
+function refreshCellSizeControl() {
+  const options = BLOCK_SIZE_OPTIONS;
+  const index = closestOptionIndex(options, state.cellSize);
 
   state.cellSizeOptions = options;
   state.cellSize = options[index];
@@ -228,9 +222,10 @@ function refreshCellSizeControl(dimensions = getActiveOutputDimensions()) {
   els.cellSize.max = String(Math.max(0, options.length - 1));
   els.cellSize.step = "1";
   els.cellSize.value = String(index);
-  els.cellSize.disabled = options.length < 2;
-  els.cellSize.title = `Valid full-tile sizes: ${options.map((size) => `${size}px`).join(", ")}`;
+  els.cellSize.disabled = false;
+  els.cellSize.title = `Block size options: ${options.map((size) => `${size}px`).join(", ")}`;
   els.cellSizeValue.value = `${state.cellSize} px`;
+  refreshCanvasSizeControl();
 }
 
 function updateLabels() {
@@ -293,6 +288,34 @@ function loadImageFromUrl(src, name) {
     image.src = src;
     image.dataset.name = name;
   });
+}
+
+function rasterizeImageSource(image, name = image?.dataset?.name || "") {
+  const { width, height } = getImageDimensions(image);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, width);
+  canvas.height = Math.max(1, height);
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  canvas.dataset.name = name;
+  return canvas;
+}
+
+async function loadUploadedImage(file) {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = rasterizeImageSource(bitmap, file.name);
+      if (typeof bitmap.close === "function") bitmap.close();
+      return canvas;
+    } catch {
+      // Fall back to the data URL path below.
+    }
+  }
+
+  const dataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageFromUrl(dataUrl, file.name);
+  return rasterizeImageSource(image, file.name);
 }
 
 function imageCanBeSampled(image) {
@@ -514,11 +537,37 @@ function renderCustomTileGrid() {
       thumb.append(image);
     }
 
+    const overlay = document.createElement("span");
+    overlay.className = "thumbnail-upload-overlay";
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.innerHTML = `
+      <svg viewBox="0 0 24 24">
+        <path d="M12 16V4"></path>
+        <path d="m7 9 5-5 5 5"></path>
+        <path d="M5 20h14"></path>
+      </svg>
+    `;
+    thumb.append(overlay);
+
+    const handle = document.createElement("span");
+    handle.className = "custom-tile-handle";
+    handle.setAttribute("aria-hidden", "true");
+    handle.innerHTML = `
+      <svg viewBox="0 0 24 24">
+        <circle cx="8" cy="7" r="1.5"></circle>
+        <circle cx="16" cy="7" r="1.5"></circle>
+        <circle cx="8" cy="12" r="1.5"></circle>
+        <circle cx="16" cy="12" r="1.5"></circle>
+        <circle cx="8" cy="17" r="1.5"></circle>
+        <circle cx="16" cy="17" r="1.5"></circle>
+      </svg>
+    `;
+
     const name = document.createElement("span");
     name.className = "custom-tile-name";
     name.textContent = tile ? tile.name : "Empty";
 
-    slot.append(number, thumb, name);
+    slot.append(number, thumb, handle, name);
 
     slot.addEventListener("click", () => {
       state.customTileInputTarget = index;
@@ -570,8 +619,7 @@ function renderCustomTileGrid() {
 }
 
 function drawImageFitted(context, image, x, y, width, height) {
-  const imageWidth = image.naturalWidth || image.width;
-  const imageHeight = image.naturalHeight || image.height;
+  const { width: imageWidth, height: imageHeight } = getImageDimensions(image);
   const scale = Math.min(width / imageWidth, height / imageHeight);
   const drawWidth = imageWidth * scale;
   const drawHeight = imageHeight * scale;
@@ -581,9 +629,10 @@ function drawImageFitted(context, image, x, y, width, height) {
 function drawImageContained(context, image, width, height) {
   context.fillStyle = "#eef1f2";
   context.fillRect(0, 0, width, height);
-  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
-  const drawWidth = image.naturalWidth * scale;
-  const drawHeight = image.naturalHeight * scale;
+  const { width: imageWidth, height: imageHeight } = getImageDimensions(image);
+  const scale = Math.min(width / imageWidth, height / imageHeight);
+  const drawWidth = imageWidth * scale;
+  const drawHeight = imageHeight * scale;
   const x = (width - drawWidth) / 2;
   const y = (height - drawHeight) / 2;
   context.drawImage(image, x, y, drawWidth, drawHeight);
@@ -595,13 +644,36 @@ function drawPreview() {
   els.fileMeta.textContent = state.fileName;
 }
 
-function getOutputDimensions(image) {
-  const maxSide = Math.min(4000, Math.max(1, Number(state.maxOutput)));
-  const scale = maxSide / Math.max(image.naturalWidth, image.naturalHeight);
+function getSnappedOutputDimensions(sourceWidth, sourceHeight, maxSide, blockSize) {
+  const snappedMaxSide = snapCanvasSize(maxSide, blockSize);
+  if (!sourceWidth || !sourceHeight) {
+    return {
+      width: snappedMaxSide,
+      height: snappedMaxSide
+    };
+  }
+
+  const scale = snappedMaxSide / Math.max(sourceWidth, sourceHeight);
+  const snappedWidth = Math.max(blockSize, Math.round((sourceWidth * scale) / blockSize) * blockSize);
+  const snappedHeight = Math.max(blockSize, Math.round((sourceHeight * scale) / blockSize) * blockSize);
+
+  if (sourceWidth >= sourceHeight) {
+    return {
+      width: snappedMaxSide,
+      height: snappedHeight
+    };
+  }
+
   return {
-    width: Math.max(1, Math.round(image.naturalWidth * scale)),
-    height: Math.max(1, Math.round(image.naturalHeight * scale))
+    width: snappedWidth,
+    height: snappedMaxSide
   };
+}
+
+function getOutputDimensions(image) {
+  const maxSide = snapCanvasSize(state.maxOutput, state.cellSize);
+  const { width, height } = getImageDimensions(image);
+  return getSnappedOutputDimensions(width, height, maxSide, state.cellSize);
 }
 
 function applyToneCurve(luminance) {
@@ -883,7 +955,7 @@ function renderMosaic() {
 
   try {
     const { width, height } = getOutputDimensions(state.image);
-    refreshCellSizeControl({ width, height });
+    refreshCellSizeControl();
     els.outputCanvas.width = width;
     els.outputCanvas.height = height;
 
@@ -970,19 +1042,17 @@ function handleFile(file) {
     setStatus("Choose an image file");
     return;
   }
-  const reader = new FileReader();
-  reader.onload = async () => {
-    try {
-      const image = await loadImageFromUrl(reader.result, file.name);
+  setStatus(`Loading ${file.name}`);
+  loadUploadedImage(file)
+    .then((image) => {
       state.image = image;
       state.fileName = file.name;
       drawPreview();
       renderMosaic();
-    } catch {
+    })
+    .catch(() => {
       setStatus("Image could not be loaded");
-    }
-  };
-  reader.readAsDataURL(file);
+    });
 }
 
 function downloadBlob(blob, fileName) {
@@ -1213,14 +1283,19 @@ function bindEvents() {
   });
 
   els.cellSize.addEventListener("input", () => {
-    const dimensions = getActiveOutputDimensions();
-    const options = state.cellSizeOptions.length ? state.cellSizeOptions : getCellSizeOptionsForDimensions(dimensions.width, dimensions.height);
+    const options = state.cellSizeOptions.length ? state.cellSizeOptions : BLOCK_SIZE_OPTIONS;
     const index = Math.max(0, Math.min(options.length - 1, Number(els.cellSize.value)));
     state.cellSize = options[index] || state.cellSize;
+    state.maxOutput = snapCanvasSize(state.maxOutput, state.cellSize);
     scheduleRender();
   });
 
-  [els.maxOutput, els.contrast, els.brightness, els.gamma, els.colorStrength].forEach((input) => {
+  els.maxOutput.addEventListener("input", () => {
+    state.maxOutput = snapCanvasSize(els.maxOutput.value, state.cellSize);
+    scheduleRender();
+  });
+
+  [els.contrast, els.brightness, els.gamma, els.colorStrength].forEach((input) => {
     input.addEventListener("input", () => {
       state[input.id] = Number(input.value);
       scheduleRender();
