@@ -564,17 +564,20 @@ button {
   display: none;
 }
 
-.custom-tiles-section {
+.custom-tiles-section,
+.glyph-values-section {
   opacity: 0.72;
   transition: opacity 140ms ease;
   border: 2px dashed var(--medium-grey);
 }
 
-.custom-tiles-section.is-active {
+.custom-tiles-section.is-active,
+.glyph-values-section.is-active {
   opacity: 1;
 }
 
-.custom-tile-grid {
+.custom-tile-grid,
+.glyph-value-grid {
   width: min(100%, 75px);
   display: flex;
   flex-direction: column;
@@ -625,6 +628,22 @@ button {
   transform: scale(0.98);
 }
 
+.glyph-value-slot {
+  width: 100%;
+  max-width: 75px;
+  min-width: 0;
+  min-height: 0;
+  max-height: 75px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
 .custom-tile-number {
   width: 22px;
   height: 22px;
@@ -639,6 +658,28 @@ button {
   font-size: 0.68rem;
   font-weight: 820;
   font-variant-numeric: tabular-nums;
+}
+
+.glyph-value-input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 820;
+  line-height: 1;
+  caret-color: var(--teal-dark);
+}
+
+.glyph-value-input:focus {
+  outline: 0;
+}
+
+.glyph-value-slot:focus-within {
+  box-shadow: inset 0 0 0 2px var(--teal);
 }
 
 .custom-tile-thumb {
@@ -770,12 +811,13 @@ button {
   .tiles-panel {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: start;
   }
 
-  .custom-tiles-section {
-    grid-column: span 2;
+  .custom-tiles-section,
+  .glyph-values-section {
+    grid-column: span 1;
   }
 
   .tone-section {
@@ -826,7 +868,8 @@ button {
   }
 
   .tone-section,
-  .custom-tiles-section {
+  .custom-tiles-section,
+  .glyph-values-section {
     grid-column: auto;
   }
 

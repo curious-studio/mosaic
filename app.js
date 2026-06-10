@@ -34,6 +34,8 @@ const els = {
   toneHistogram: document.getElementById("toneHistogram"),
   toneStrip: document.getElementById("toneStrip"),
   toneTilesSection: document.getElementById("toneTilesSection"),
+  glyphValuesSection: document.getElementById("glyphValuesSection"),
+  glyphValueGrid: document.getElementById("glyphValueGrid"),
   customTilesSection: document.getElementById("customTilesSection"),
   customTileInput: document.getElementById("customTileInput"),
   customTileUploadButton: document.getElementById("customTileUploadButton"),
@@ -42,6 +44,8 @@ const els = {
   duoPaper: document.getElementById("duoPaper"),
   duoInk: document.getElementById("duoInk")
 };
+
+const DEFAULT_GLYPH_VALUES = [" ", ".", ",", "-", "+", "%", "o", "&", "@", "W"];
 
 const defaults = {
   cellSize: 50,
@@ -53,6 +57,7 @@ const defaults = {
   exportScale: 3,
   duoPaper: "#d6fffc",
   duoInk: "#75002b",
+  glyphValues: DEFAULT_GLYPH_VALUES,
   showGrid: false,
   randomRotation: false,
   autoRender: true,
@@ -74,6 +79,7 @@ const state = {
   fileName: DEFAULT_IMAGE_NAME,
   tileCache: new Map(),
   tintedTileCache: new Map(),
+  glyphValues: [...DEFAULT_GLYPH_VALUES],
   customTiles: Array(10).fill(null),
   customTileVersion: 0,
   customTileInputTarget: null,
@@ -125,6 +131,41 @@ function mixColor(a, b, amount) {
     lerp(a[1], b[1], amount),
     lerp(a[2], b[2], amount)
   ];
+}
+
+function glyphValueIndexForTone(tone) {
+  return 10 - tone;
+}
+
+function glyphValueForTone(tone) {
+  return state.glyphValues[glyphValueIndexForTone(tone)] || DEFAULT_GLYPH_VALUES[glyphValueIndexForTone(tone)];
+}
+
+function glyphFontScale(glyph) {
+  const glyphLength = Array.from(glyph || "").length;
+  if (glyphLength >= 3) return 0.48;
+  if (glyphLength === 2) return 0.68;
+  return 1;
+}
+
+function glyphFontSize(tone, scaleValue, glyph) {
+  const baseSize = (88 - tone * 2.2) * 1.1 * glyphFontScale(glyph);
+  return Math.max(scaleValue(22), Math.round(scaleValue(baseSize)));
+}
+
+function glyphInputSize(glyph) {
+  const glyphLength = Array.from(glyph || "").length;
+  if (glyphLength >= 3) return "0.92rem";
+  if (glyphLength === 2) return "1.15rem";
+  return "1.55rem";
+}
+
+function normalizeGlyphInput(value, fallback) {
+  const rawValue = value || "";
+  if (!rawValue.length) return fallback;
+  const collapsed = rawValue.replace(/\s/g, " ");
+  const normalized = Array.from(collapsed).slice(0, 3).join("");
+  return normalized.length ? normalized : fallback;
 }
 
 function setStatus(text) {
@@ -212,10 +253,13 @@ function syncControls() {
   els.duoPaper.value = state.duoPaper;
   els.duoInk.value = state.duoInk;
   const isCustomPack = state.pack === "custom";
+  const isGlyphPack = state.pack === "glyph";
   els.duoColors.classList.toggle("is-active", state.mode === "duo");
   els.customTilesSection.hidden = !isCustomPack;
   els.customTilesSection.classList.toggle("is-active", isCustomPack);
-  els.toneTilesSection.hidden = isCustomPack;
+  els.glyphValuesSection.hidden = !isGlyphPack;
+  els.glyphValuesSection.classList.toggle("is-active", isGlyphPack);
+  els.toneTilesSection.hidden = isCustomPack || isGlyphPack;
   els.showGrid.checked = state.showGrid;
   els.randomRotation.checked = state.randomRotation;
   els.autoRender.checked = state.autoRender;
@@ -226,6 +270,7 @@ function syncControls() {
     button.classList.toggle("active", button.dataset.mode === state.mode);
   });
   updateLabels();
+  renderGlyphValueGrid();
   renderCustomTileGrid();
 }
 
@@ -396,6 +441,50 @@ function reorderCustomTile(fromIndex, toIndex) {
   state.customTiles.length = 10;
   state.pack = "custom";
   commitCustomTileChange("Custom tiles reordered");
+}
+
+function commitGlyphValueChange(statusText) {
+  state.tileCache.clear();
+  state.tintedTileCache.clear();
+  scheduleRender();
+  if (statusText) setStatus(statusText);
+}
+
+function renderGlyphValueGrid() {
+  els.glyphValueGrid.innerHTML = "";
+  state.glyphValues.forEach((glyph, index) => {
+    const valueNumber = index + 1;
+    const slot = document.createElement("label");
+    slot.className = "glyph-value-slot";
+    slot.setAttribute("aria-label", `Value ${valueNumber} glyph`);
+
+    const number = document.createElement("span");
+    number.className = "custom-tile-number";
+    number.textContent = String(valueNumber);
+
+    const input = document.createElement("input");
+    input.className = "glyph-value-input";
+    input.type = "text";
+    input.inputMode = "text";
+    input.spellcheck = false;
+    input.autocapitalize = "off";
+    input.autocomplete = "off";
+    input.maxLength = 3;
+    input.value = glyph;
+    input.setAttribute("aria-label", `Glyph for value ${valueNumber}`);
+    input.style.fontSize = glyphInputSize(glyph);
+
+    input.addEventListener("input", () => {
+      const nextGlyph = normalizeGlyphInput(input.value, DEFAULT_GLYPH_VALUES[index]);
+      input.value = nextGlyph;
+      input.style.fontSize = glyphInputSize(nextGlyph);
+      state.glyphValues[index] = nextGlyph;
+      commitGlyphValueChange("Glyph values updated");
+    });
+
+    slot.append(number, input);
+    els.glyphValueGrid.append(slot);
+  });
 }
 
 function renderCustomTileGrid() {
@@ -583,17 +672,17 @@ function createTileCanvas(tone, pack, size = TILE_BASE_SIZE) {
   t.lineJoin = "round";
 
   if (pack === "glyph") {
-    const glyphs = ["W", "@", "&", "5", "%", "o", "+", "-", ",", "."];
-    t.globalAlpha = tone === 10 ? 1.0 : 1.0;
-    t.font = `800 ${Math.round(scaled(88 - tone * 2.2))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    const glyph = glyphValueForTone(tone);
+    t.globalAlpha = tone === 10 ? 0.22 : 0.9;
+    t.font = `800 ${glyphFontSize(tone, scaled, glyph)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     t.textAlign = "center";
     t.textBaseline = "middle";
-    t.fillText(glyphs[tone - 1], scaled(48), scaled(52));
+    t.fillText(glyph, scaled(48), scaled(52));
   }
 
 if (pack === "hatch") {
     const spacing = scaled(5 + tone * 5.2);
-    const hatchOffset = 5; 
+    const hatchOffset = 6; 
     
     t.lineWidth = Math.max(scaled(0.05), scaled(9 - tone * 0.99));
         for (let i = (-size + hatchOffset); i < size * 2; i += spacing) {
@@ -613,6 +702,7 @@ if (pack === "hatch") {
       }
     }
   }
+
   if (pack === "dot") {
     const radius = Math.max(scaled(3), scaled(density * 22));
     const positions = [
@@ -974,9 +1064,9 @@ function tileSvg(tone, pack, size) {
   const scaled = (value) => Number((value * s).toFixed(2));
 
   if (pack === "glyph") {
-    const glyphs = ["@", "#", "%", "&", "8", "o", "+", "-", ".", "."];
-    const fontSize = scaled(88 - tone * 2.2);
-    return `<text x="${scaled(48)}" y="${scaled(55)}" font-family="ui-monospace, monospace" font-size="${fontSize}" font-weight="800" text-anchor="middle" dominant-baseline="middle" stroke="none">${escapeXml(glyphs[tone - 1])}</text>`;
+    const glyph = glyphValueForTone(tone);
+    const fontSize = glyphFontSize(tone, scaled, glyph);
+    return `<text x="${scaled(48)}" y="${scaled(55)}" font-family="ui-monospace, monospace" font-size="${fontSize}" font-weight="800" text-anchor="middle" dominant-baseline="middle" stroke="none">${escapeXml(glyph)}</text>`;
   }
 
   if (pack === "dot") {
@@ -1066,6 +1156,8 @@ function exportSvg() {
 }
 
 function resetControls() {
+  state.tileCache.clear();
+  state.tintedTileCache.clear();
   Object.assign(state, {
     cellSize: defaults.cellSize,
     maxOutput: defaults.maxOutput,
@@ -1076,6 +1168,7 @@ function resetControls() {
     exportScale: defaults.exportScale,
     duoPaper: defaults.duoPaper,
     duoInk: defaults.duoInk,
+    glyphValues: [...DEFAULT_GLYPH_VALUES],
     showGrid: defaults.showGrid,
     randomRotation: defaults.randomRotation,
     autoRender: defaults.autoRender,
