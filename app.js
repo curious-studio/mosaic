@@ -9,6 +9,7 @@ const els = {
   emptyState: document.getElementById("emptyState"),
   fileMeta: document.getElementById("fileMeta"),
   statusText: document.getElementById("statusText"),
+  tilesPanel: document.querySelector(".tiles-panel"),
   cellSize: document.getElementById("cellSize"),
   maxOutput: document.getElementById("maxOutput"),
   showGrid: document.getElementById("showGrid"),
@@ -90,6 +91,7 @@ const state = {
   cells: [],
   histogram: Array(10).fill(0),
   renderTimer: 0,
+  lastTileRenderMode: defaults.mode,
   lastRender: null
 };
 
@@ -262,6 +264,7 @@ function syncControls() {
   const isCustomPack = state.pack === "custom";
   const isGlyphPack = state.pack === "glyph";
   els.duoColors.classList.toggle("is-active", state.mode === "duo");
+  els.tilesPanel.classList.toggle("is-muted", state.mode === "pixelate");
   els.customTilesSection.hidden = !isCustomPack;
   els.customTilesSection.classList.toggle("is-active", isCustomPack);
   els.glyphValuesSection.hidden = !isGlyphPack;
@@ -851,7 +854,7 @@ function getPaintForCell(cell) {
   let ink = [0, 0, 0];
   let opacity = 0.86;
 
-  if (state.mode === "color") {
+  if (state.mode === "color" || state.mode === "pixelate") {
     base = mixColor([252, 253, 252], cell.color, colorAmount);
     ink = mixColor([35, 35, 35], [0, 0, 0], 0.72);
     opacity = 0.78;
@@ -964,6 +967,15 @@ function drawTileCell(context, cell, scale = 1) {
 
   context.fillStyle = rgb(base);
   context.fillRect(x, y, width, height);
+
+  if (state.mode === "pixelate") {
+    if (state.showGrid) {
+      context.strokeStyle = "rgba(255, 255, 255, 0.42)";
+      context.lineWidth = Math.max(1, Math.round(scale));
+      context.strokeRect(x + 0.5, y + 0.5, Math.max(0, width - 1), Math.max(0, height - 1));
+    }
+    return;
+  }
 
   if (rotation) {
     context.save();
@@ -1234,6 +1246,13 @@ function exportSvg() {
     const tileY = (cell.height - tileHeight) / 2;
     parts.push(`<g transform="translate(${cell.x} ${cell.y})">`);
     parts.push(`<rect width="${cell.width}" height="${cell.height}" fill="${rgb(base)}" />`);
+    if (state.mode === "pixelate") {
+      if (state.showGrid) {
+        parts.push(`<rect width="${cell.width}" height="${cell.height}" fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.42" stroke-width="1" />`);
+      }
+      parts.push(`</g>`);
+      return;
+    }
     parts.push(`<svg width="${cell.width}" height="${cell.height}" viewBox="0 0 ${cell.width} ${cell.height}" overflow="hidden">`);
     if (rotation) {
       parts.push(`<g transform="translate(${cell.width / 2} ${cell.height / 2}) rotate(${rotation}) translate(${-cell.width / 2} ${-cell.height / 2})">`);
@@ -1282,7 +1301,8 @@ function resetControls() {
     randomRotation: defaults.randomRotation,
     autoRender: defaults.autoRender,
     pack: defaults.pack,
-    mode: defaults.mode
+    mode: defaults.mode,
+    lastTileRenderMode: defaults.mode
   });
   syncControls();
   scheduleRender();
@@ -1361,6 +1381,7 @@ function bindEvents() {
   document.querySelectorAll("[data-pack]").forEach((button) => {
     button.addEventListener("click", () => {
       state.pack = button.dataset.pack;
+      if (state.mode === "pixelate") state.mode = state.lastTileRenderMode || defaults.mode;
       syncControls();
       scheduleRender();
     });
@@ -1369,6 +1390,11 @@ function bindEvents() {
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       state.mode = button.dataset.mode;
+      if (state.mode === "pixelate") {
+        state.colorStrength = 100;
+      } else {
+        state.lastTileRenderMode = state.mode;
+      }
       syncControls();
       scheduleRender();
     });

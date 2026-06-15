@@ -217,6 +217,15 @@ button {
   gap: 22px;
 }
 
+.tiles-panel {
+  opacity: 1;
+  transition: opacity 140ms ease;
+}
+
+.tiles-panel.is-muted {
+  opacity: 0.25;
+}
+
 .panel-section {
   background: rgba(255, 255, 255, 0.92);
   border-radius: 4px;
