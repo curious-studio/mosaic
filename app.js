@@ -1,9 +1,7 @@
 const els = {
   imageInput: document.getElementById("imageInput"),
   uploadButton: document.getElementById("uploadButton"),
-  renderButton: document.getElementById("renderButton"),
   downloadPngButton: document.getElementById("downloadPngButton"),
-  downloadSvgButton: document.getElementById("downloadSvgButton"),
   resetButton: document.getElementById("resetButton"),
   dropZone: document.getElementById("dropZone"),
   sourcePreview: document.getElementById("sourcePreview"),
@@ -1292,9 +1290,7 @@ function resetControls() {
 function bindEvents() {
   els.uploadButton.addEventListener("click", () => els.imageInput.click());
   els.imageInput.addEventListener("change", (event) => handleFile(event.target.files[0]));
-  els.renderButton.addEventListener("click", renderMosaic);
   els.downloadPngButton.addEventListener("click", exportPng);
-  els.downloadSvgButton.addEventListener("click", exportSvg);
   els.resetButton.addEventListener("click", resetControls);
   els.customTileUploadButton.addEventListener("click", () => {
     state.customTileInputTarget = 9;
