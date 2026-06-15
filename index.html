@@ -174,11 +174,6 @@
                     <input id="showGrid" type="checkbox" />
                   </label>
 
-                  <label class="toggle-row" for="randomRotation">
-                    <span>Random tile rotation</span>
-                    <input id="randomRotation" type="checkbox" />
-                  </label>
-
                   <label class="toggle-row" for="autoRender">
                     <span>Auto render</span>
                     <input id="autoRender" type="checkbox" checked />
@@ -250,6 +245,11 @@
 <!--              <button type="button" data-pack="block">Block</button> -->
               <button type="button" data-pack="custom">Custom</button>
             </div>
+                  <label class="toggle-row" for="randomRotation">
+                    <span>Random tile rotation</span>
+                    <input id="randomRotation" type="checkbox" />
+                  </label>
+
           </section>
 
           <section class="panel-section custom-tiles-section" id="customTilesSection" hidden>
@@ -257,7 +257,7 @@
               <h2>Custom</h2>
               <button class="mini-button" id="customTileUploadButton" type="button">Upload set</button>
             </div>
-            <p class="panel-description">Upload a set of 10 images and rearrange them to create your own custom mosaic tiles. (You can also upload individual tiles.)</p>
+            <p class="panel-description">Upload a set of 10 images and rearrange them to create your own custom mosaic tiles. (Or upload individual tiles.)</p>
             <input class="hidden-input" id="customTileInput" type="file" accept="image/*" multiple />
             <div class="custom-tile-grid" id="customTileGrid" aria-label="Custom tone images"></div>
           </section>
@@ -279,7 +279,6 @@
             </div>
             <div class="tone-strip" id="toneStrip"></div>
           </section>
-
         </aside>
       </main>
     </div>
