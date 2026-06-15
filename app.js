@@ -47,6 +47,7 @@ const els = {
 };
 
 const DEFAULT_GLYPH_VALUES = [" ", ".", ",", "-", "+", "%", "o", "&", "@", "W"];
+const GLYPH_SPACE_DISPLAY = "␣";
 
 const defaults = {
   cellSize: 50,
@@ -147,7 +148,8 @@ function glyphValueIndexForTone(tone) {
 }
 
 function glyphValueForTone(tone) {
-  return state.glyphValues[glyphValueIndexForTone(tone)] || DEFAULT_GLYPH_VALUES[glyphValueIndexForTone(tone)];
+  const index = glyphValueIndexForTone(tone);
+  return state.glyphValues[index] ?? DEFAULT_GLYPH_VALUES[index];
 }
 
 function glyphFontScale(glyph) {
@@ -169,12 +171,21 @@ function glyphInputSize(glyph) {
   return "1.55rem";
 }
 
-function normalizeGlyphInput(value, fallback) {
+function updateGlyphInputDisplay(input, glyph) {
+  const isSpace = glyph === " ";
+  const displayGlyph = isSpace ? GLYPH_SPACE_DISPLAY : glyph;
+  input.value = displayGlyph;
+  input.classList.toggle("is-space-placeholder", isSpace);
+  input.style.fontSize = glyphInputSize(displayGlyph);
+}
+
+function normalizeGlyphInput(value) {
   const rawValue = value || "";
-  if (!rawValue.length) return fallback;
+  if (!rawValue.length) return "";
   const collapsed = rawValue.replace(/\s/g, " ");
   const normalized = Array.from(collapsed).slice(0, 3).join("");
-  return normalized.length ? normalized : fallback;
+  if (/^ +$/.test(normalized)) return " ";
+  return normalized;
 }
 
 function setStatus(text) {
@@ -390,6 +401,23 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function imageHasTransparency(image) {
+  const { width, height } = getImageDimensions(image);
+  if (!width || !height) return false;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, width, height);
+  const { data } = context.getImageData(0, 0, width, height);
+
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 250) return true;
+  }
+  return false;
+}
+
 function makeCustomTileId() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
@@ -404,7 +432,8 @@ async function makeCustomTile(file) {
     id: makeCustomTileId(),
     name: file.name,
     dataUrl,
-    image
+    image,
+    hasTransparency: imageHasTransparency(image)
   };
 }
 
@@ -496,15 +525,24 @@ function renderGlyphValueGrid() {
     input.autocapitalize = "off";
     input.autocomplete = "off";
     input.maxLength = 3;
-    input.value = glyph;
     input.setAttribute("aria-label", `Glyph for value ${valueNumber}`);
-    input.style.fontSize = glyphInputSize(glyph);
+    updateGlyphInputDisplay(input, glyph);
+
+    input.addEventListener("focus", () => {
+      if (input.classList.contains("is-space-placeholder")) input.select();
+    });
 
     input.addEventListener("input", () => {
-      const nextGlyph = normalizeGlyphInput(input.value, DEFAULT_GLYPH_VALUES[index]);
-      input.value = nextGlyph;
-      input.style.fontSize = glyphInputSize(nextGlyph);
+      const nextGlyph = normalizeGlyphInput(input.value);
       state.glyphValues[index] = nextGlyph;
+      updateGlyphInputDisplay(input, nextGlyph);
+      commitGlyphValueChange("Glyph values updated");
+    });
+
+    input.addEventListener("blur", () => {
+      if (input.value.length) return;
+      state.glyphValues[index] = " ";
+      updateGlyphInputDisplay(input, state.glyphValues[index]);
       commitGlyphValueChange("Glyph values updated");
     });
 
@@ -621,9 +659,11 @@ function renderCustomTileGrid() {
   });
 }
 
-function drawImageFitted(context, image, x, y, width, height) {
+function drawImageCropped(context, image, x, y, width, height) {
   const { width: imageWidth, height: imageHeight } = getImageDimensions(image);
-  const scale = Math.min(width / imageWidth, height / imageHeight);
+  if (!imageWidth || !imageHeight) return;
+
+  const scale = Math.max(width / imageWidth, height / imageHeight);
   const drawWidth = imageWidth * scale;
   const drawHeight = imageHeight * scale;
   context.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
@@ -698,24 +738,21 @@ function createCustomTileCanvas(tone, size = TILE_BASE_SIZE) {
   tile.width = size;
   tile.height = size;
   const tileCtx = tile.getContext("2d");
-  tileCtx.clearRect(0, 0, size, size);
-  drawImageFitted(tileCtx, customTile.image, 0, 0, size, size);
+  if (customTile.hasTransparency) {
+    tileCtx.clearRect(0, 0, size, size);
+  } else {
+    tileCtx.fillStyle = "#fff";
+    tileCtx.fillRect(0, 0, size, size);
+  }
+  drawImageCropped(tileCtx, customTile.image, 0, 0, size, size);
 
   const imageData = tileCtx.getImageData(0, 0, size, size);
   const data = imageData.data;
-  let hasTransparency = false;
-
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 250) {
-      hasTransparency = true;
-      break;
-    }
-  }
 
   for (let i = 0; i < data.length; i += 4) {
     const sourceAlpha = data[i + 3] / 255;
     const luminance = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
-    const mask = hasTransparency ? sourceAlpha : 1 - luminance;
+    const mask = customTile.hasTransparency ? sourceAlpha : 1 - luminance;
     data[i] = 5;
     data[i + 1] = 5;
     data[i + 2] = 5;
@@ -748,7 +785,7 @@ function createTileCanvas(tone, pack, size = TILE_BASE_SIZE) {
 
   if (pack === "glyph") {
     const glyph = glyphValueForTone(tone);
-    t.globalAlpha = tone === 10 ? 0.22 : 0.9;
+    t.globalAlpha = 0.9;
     t.font = `800 ${glyphFontSize(tone, scaled, glyph)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     t.textAlign = "center";
     t.textBaseline = "middle";
