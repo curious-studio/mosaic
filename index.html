@@ -17,7 +17,7 @@
             <span></span>
           </div>
           <div>
-            <h1>Mosaic Studio</h1>
+            <h1>Mosaic</h1>
             <p id="statusText">Loading gradient-400x400.jpg</p>
           </div>
         </div>
@@ -57,7 +57,7 @@
         <aside class="side-panel controls-panel" aria-label="Mosaic controls">
           <section class="panel-section source-section">
             <div class="section-heading">
-              <h2>Source</h2>
+              <h2>Source Image</h2>
               <span id="fileMeta">gradient-400x400.jpg</span>
             </div>
             <label class="drop-zone" id="dropZone">
@@ -89,8 +89,9 @@
 
             <label class="range-field" for="maxOutput">
               <span>Canvas size</span>
-              <output id="maxOutputValue">1400 px</output>
+              <output id="maxOutputValue">0 x 0 tiles</output>
               <input id="maxOutput" type="range" min="100" max="2500" value="1400" step="100" />
+              <span class="range-pixels" id="maxOutputPixels">0 x 0 px</span>
             </label>
           </section>
           <section class="panel-section">
@@ -109,7 +110,7 @@
               </label>
               <label class="color-field" for="duoInk">
                 <span>Ink</span>
-                <input id="duoInk" type="color" value="#a63e64" />
+                <input id="duoInk" type="color" value="#982e8e" />
               </label>
             </div>
           </section>
@@ -145,19 +146,7 @@
             <details class="panel-section advanced-settings">
               <summary>Advanced Settings</summary>
               <div class="advanced-settings-body">
-
-                <section class="advanced-panel advanced-map" aria-label="Current map">
-                  <div class="section-heading">
-                    <h2>Current Map</h2>
-                  </div>
-                  <div class="map-list">
-                    <span>Average RGB</span>
-                    <span>Luminance</span>
-                    <span>Tone bucket</span>
-                    <span>Tile render</span>
-                  </div>
-                </section>  
-
+                <div class="advanced-settings-left">
                 <section class="advanced-panel" aria-label="Advanced render controls">
                   <div class="section-heading">
                     <h2>Render Settings</h2>
@@ -214,7 +203,36 @@
                       <span>render</span>
                     </div>              
                   </div>
-                  </section>               
+                  </section>
+                </div>
+
+                <section class="advanced-panel advanced-map" aria-label="How it works">
+                  <div class="section-heading">
+                    <h2>How It Works</h2>
+                  </div>
+                  <div class="map-list">
+                    <div class="map-item">
+                      <span class="map-step">Step 1</span>
+                      <span class="map-title">Average RGB</span>
+                      <p class="map-desc">Each cell subsamples its area of the source image and averages the red, green, and blue channels into a single color.</p>
+                    </div>
+                    <div class="map-item">
+                      <span class="map-step">Step 2</span>
+                      <span class="map-title">Luminance</span>
+                      <p class="map-desc">That RGB color is converted to a brightness value using standard luminance weights. (Here's <a href="https://en.wikipedia.org/wiki/Relative_luminance">the math</a>, if you're curious and/or you like math.)</p>
+                    </div>
+                    <div class="map-item">
+                      <span class="map-step">Step 3</span>
+                      <span class="map-title">Tone Bucket</span>
+                      <p class="map-desc">Those brightness values are divided into one of 10 tone "buckets," determining which tile or glyph to draw.</p>
+                    </div>
+                    <div class="map-item">
+                      <span class="map-step">Step 4</span>
+                      <span class="map-title">Tile Render</span>
+                      <p class="map-desc">Each final tile is drawn based on the user settings with the average color as a background and the tile overlaid.</p>
+                    </div>
+                  </div>
+                </section>              
               </div>
             </details>
           </footer>

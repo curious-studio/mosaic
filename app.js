@@ -23,6 +23,7 @@ const els = {
   exportScale: document.getElementById("exportScale"),
   cellSizeValue: document.getElementById("cellSizeValue"),
   maxOutputValue: document.getElementById("maxOutputValue"),
+  maxOutputPixels: document.getElementById("maxOutputPixels"),
   contrastValue: document.getElementById("contrastValue"),
   brightnessValue: document.getElementById("brightnessValue"),
   gammaValue: document.getElementById("gammaValue"),
@@ -56,7 +57,7 @@ const defaults = {
   colorStrength: 72,
   exportScale: 3,
   duoPaper: "#d6fffc",
-  duoInk: "#75002b",
+  duoInk: "#982e8e",
   glyphValues: DEFAULT_GLYPH_VALUES,
   showGrid: false,
   randomRotation: false,
@@ -230,7 +231,9 @@ function refreshCellSizeControl() {
 
 function updateLabels() {
   refreshCellSizeControl();
-  els.maxOutputValue.value = `${state.maxOutput} px`;
+  const { width, height } = getOutputDimensions(state.image);
+  els.maxOutputValue.value = `${width / state.cellSize} x ${height / state.cellSize} tiles`;
+  els.maxOutputPixels.textContent = `${width} x ${height} px`;
   els.contrastValue.value = state.contrast.toFixed(2);
   els.brightnessValue.value = state.brightness.toFixed(2);
   els.gammaValue.value = state.gamma.toFixed(2);
@@ -554,12 +557,12 @@ function renderCustomTileGrid() {
     handle.setAttribute("aria-hidden", "true");
     handle.innerHTML = `
       <svg viewBox="0 0 24 24">
-        <circle cx="8" cy="7" r="1.5"></circle>
-        <circle cx="16" cy="7" r="1.5"></circle>
-        <circle cx="8" cy="12" r="1.5"></circle>
-        <circle cx="16" cy="12" r="1.5"></circle>
-        <circle cx="8" cy="17" r="1.5"></circle>
-        <circle cx="16" cy="17" r="1.5"></circle>
+        <circle cx="8" cy="7" r="1.7"></circle>
+        <circle cx="16" cy="7" r="1.7"></circle>
+        <circle cx="8" cy="12" r="1.7"></circle>
+        <circle cx="16" cy="12" r="1.7"></circle>
+        <circle cx="8" cy="17" r="1.7"></circle>
+        <circle cx="16" cy="17" r="1.7"></circle>
       </svg>
     `;
 
