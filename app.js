@@ -936,9 +936,10 @@ function readCellAverage(data, imageWidth, x, y, width, height) {
     const row = yy * imageWidth;
     for (let xx = x; xx < x + width; xx += stride) {
       const i = (row + xx) * 4;
-      r += data[i];
-      g += data[i + 1];
-      b += data[i + 2];
+      const alpha = data[i + 3] / 255;
+      r += data[i] * alpha + 255 * (1 - alpha);
+      g += data[i + 1] * alpha + 255 * (1 - alpha);
+      b += data[i + 2] * alpha + 255 * (1 - alpha);
       count += 1;
     }
   }
