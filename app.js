@@ -13,6 +13,7 @@ const els = {
   cellSize: document.getElementById("cellSize"),
   maxOutput: document.getElementById("maxOutput"),
   showGrid: document.getElementById("showGrid"),
+  brand: document.querySelector(".brand"),
   randomRotation: document.getElementById("randomRotation"),
   autoRender: document.getElementById("autoRender"),
   contrast: document.getElementById("contrast"),
@@ -190,6 +191,17 @@ function normalizeGlyphInput(value) {
 
 function setStatus(text) {
   els.statusText.textContent = text;
+  showStatus();
+}
+
+function showStatus() {
+  els.statusText.classList.add("is-visible");
+  clearTimeout(els.statusText._fadeTimer);
+  els.statusText._fadeTimer = setTimeout(() => {
+    if (!els.statusText.matches(":hover")) {
+      els.statusText.classList.remove("is-visible");
+    }
+  }, 1000);
 }
 
 function closestOptionIndex(options, value) {
@@ -1131,7 +1143,7 @@ function timestampSlug(date = new Date()) {
     date.getFullYear(),
     pad(date.getMonth() + 1),
     pad(date.getDate())
-  ].join("") + "-" + [
+  ].join("-") + "-" + [
     pad(date.getHours()),
     pad(date.getMinutes()),
     pad(date.getSeconds())
@@ -1139,7 +1151,7 @@ function timestampSlug(date = new Date()) {
 }
 
 function exportFileName(extension) {
-  return `${safeName()}-tone-mosaic-${timestampSlug()}.${extension}`;
+  return `Mosaic-${safeName()}mosaic-${timestampSlug()}.${extension}`;
 }
 
 function renderPngExportCanvas() {
@@ -1416,6 +1428,21 @@ function bindEvents() {
 
   els.dropZone.addEventListener("drop", (event) => {
     handleFile(event.dataTransfer.files[0]);
+  });
+
+  window.addEventListener("scroll", () => {
+    if (window.scrollY > 0) {
+      els.brand.classList.add("is-shrunk");
+    }
+  }, { once: true });
+
+  els.statusText.addEventListener("mouseenter", () => {
+    els.statusText.classList.add("is-visible");
+    clearTimeout(els.statusText._fadeTimer);
+  });
+
+  els.statusText.addEventListener("mouseleave", () => {
+    els.statusText.classList.remove("is-visible");
   });
 }
 
