@@ -67,25 +67,7 @@
             </label>
           </section>
 
-          <section class="panel-section">
-            <div class="section-heading">
-              <h2>Grid</h2>
-            </div>
-
-            <label class="range-field" for="cellSize">
-              <span>Tile size</span>
-              <output id="cellSizeValue">50 px</output>
-              <input id="cellSize" type="range" min="0" max="0" value="0" step="1" />
-            </label>
-
-            <label class="range-field" for="maxOutput">
-              <span>Canvas size</span>
-              <output id="maxOutputValue">0 x 0 tiles</output>
-              <input id="maxOutput" type="range" min="100" max="2500" value="1400" step="100" />
-              <span class="range-pixels" id="maxOutputPixels">0 x 0 px</span>
-            </label>
-          </section>
-          <section class="panel-section">
+          <section class="panel-section panel--render-mode">
             <div class="section-heading">
               <h2>Render Mode</h2>
             </div>
@@ -106,25 +88,54 @@
               </label>
             </div>
           </section>
-          <section class="panel-section">
-            <div class="section-heading">
-              <h2>Tone</h2>
-            </div>
 
-            <label class="range-field" for="contrast">
-              <span>Contrast</span>
-              <output id="contrastValue">1.10</output>
-              <input id="contrast" type="range" min="0.5" max="1.8" value="1.1" step="0.05" />
-            </label>
+          <section class="panel-section panel--grid">
+            <details>
+              <summary>
+                <div class="section-heading">
+                  <h2>Grid Size</h2>
+                </div>
+              </summary>
+              <div class="collapse-body">
+                <label class="range-field" for="cellSize">
+                  <span>Tile size</span>
+                  <output id="cellSizeValue">50 px</output>
+                  <input id="cellSize" type="range" min="0" max="0" value="0" step="1" />
+                </label>
 
-            <label class="range-field" for="brightness">
-              <span>Brightness</span>
-              <output id="brightnessValue">0.00</output>
-              <input id="brightness" type="range" min="-0.3" max="0.3" value="0" step="0.02" />
-            </label>
-          <div class="panel-section histogram" id="toneHistogram" aria-label="Tone histogram"></div>
+                <label class="range-field" for="maxOutput">
+                  <span>Canvas size</span>
+                  <output id="maxOutputValue">0 x 0 tiles</output>
+                  <input id="maxOutput" type="range" min="100" max="2500" value="1400" step="100" />
+                  <span class="range-pixels" id="maxOutputPixels">0 x 0 px</span>
+                </label>
+              </div>
+            </details>
           </section>
 
+          <section class="panel-section panel--adjustments">
+            <details>
+              <summary>
+                <div class="section-heading">
+                  <h2>Adjustments</h2>
+                </div>
+              </summary>
+              <div class="collapse-body">
+                <label class="range-field" for="contrast">
+                  <span>Contrast</span>
+                  <output id="contrastValue">1.10</output>
+                  <input id="contrast" type="range" min="0.5" max="1.8" value="1.1" step="0.05" />
+                </label>
+
+                <label class="range-field" for="brightness">
+                  <span>Brightness</span>
+                  <output id="brightnessValue">0.00</output>
+                  <input id="brightness" type="range" min="-0.3" max="0.3" value="0" step="0.02" />
+                </label>
+                <div class="panel-section histogram" id="toneHistogram" aria-label="Tone histogram"></div>
+              </div>
+            </details>
+          </section>
 
         </aside>
 
@@ -227,7 +238,7 @@
         </section>
 
         <aside class="side-panel tiles-panel" aria-label="Tile controls">
-          <section class="panel-section">
+          <section class="panel-section panel--tiles">
             <div class="section-heading">
               <h2>Tiles</h2>
             </div>
@@ -275,6 +286,20 @@
         </aside>
       </main>
     </div>
+
+    <footer class="page-footer">
+      <div class="footer-inner">
+        <div class="footer-col">
+          <span class="footer-label">About this tool</span>
+        </div>
+        <div class="footer-col">
+          <p>I created this tool as part of a curriculum on the Elements and Principles of Design. It is intended to help design students explore the Elements of Line, Texture, and Value, as well as the Principles of Contrast, Pattern (Repetition / Rhythm), and Scale / Proportion.</p>
+        </div>
+        <div class="footer-col">
+          <p>This tool creates mosaics in the <a href="https://en.wikipedia.org/wiki/Opus_regulatum"><em>opus regulatum</em></a> style, in which tiles or <em>tessarae</em> are placed according to a regular grid. <a href="https://www.instagram.com/paperbackdesign/">Example pieces created with this tool can be found here.</a> Tag or message me if you find this tool useful—I'd love to see what you make with it!</p>
+        </div>
+      </div>
+    </footer>
 
     <script src="app.js"></script>
   </body>
