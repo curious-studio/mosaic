@@ -475,7 +475,7 @@ button {
   place-items: center;
   background: var(--muted-light);
   border: 1px solid var(--line);
-  padding: clamp(12px, 2vw, 24px);
+  padding: 45px clamp(12px, 2vw, 24px);
   overflow: auto;
   position: relative;
 }
