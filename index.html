@@ -7,17 +7,28 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
 
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-WHRF4TPLP9"></script>
+  <!-- Google tag (gtag.js) with Consent Mode -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'analytics_storage': 'denied',
+      'ad_storage': 'denied'
+    });
     gtag('js', new Date());
-
-    gtag('config', 'G-WHRF4TPLP9');
+    gtag('config', 'G-WHRF4TPLP9', { 'anonymize_ip': true });
   </script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-WHRF4TPLP9"></script>
 
   <body>
+    <div id="consentBanner" class="consent-banner" role="dialog" aria-label="Cookie consent">
+      <p>This site uses cookies to 1) let you to pick up where you left off, and 2) to help me improve the tool.</p>
+      <div class="consent-actions">
+        <button id="consentDecline" type="button">Decline</button>
+        <button id="consentAccept" type="button" class="consent-primary">Accept</button>
+      </div>
+    </div>
+
     <div class="app-shell">
       <header class="topbar">
         <div class="brand">

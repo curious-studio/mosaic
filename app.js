@@ -1,3 +1,50 @@
+function trackEvent(action, params = {}) {
+  if (typeof gtag !== 'undefined') {
+    gtag('event', action, params);
+  }
+}
+
+const debouncedTrack = (delay => {
+  let timer;
+  return (action, params = {}) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => trackEvent(action, params), delay);
+  };
+})(300);
+
+const SETTINGS_KEYS = [
+  'cellSize', 'maxOutput', 'contrast', 'brightness', 'gamma',
+  'colorStrength', 'exportScale', 'duoPaper', 'duoInk',
+  'glyphValues', 'showGrid', 'randomRotation', 'autoRender',
+  'pack', 'mode', 'lastTileRenderMode'
+];
+
+function saveSettings() {
+  try {
+    const settings = {};
+    for (const key of SETTINGS_KEYS) {
+      settings[key] = state[key];
+    }
+    localStorage.setItem('mosaic_settings', JSON.stringify(settings));
+  } catch {
+  }
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem('mosaic_settings');
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    for (const key of SETTINGS_KEYS) {
+      if (key in saved) {
+        state[key] = saved[key];
+      }
+    }
+    syncControls();
+  } catch {
+  }
+}
+
 const els = {
   imageInput: document.getElementById("imageInput"),
   uploadButton: document.getElementById("uploadButton"),
@@ -43,9 +90,11 @@ const els = {
   customTileGrid: document.getElementById("customTileGrid"),
   duoColors: document.getElementById("duoColors"),
   duoPaper: document.getElementById("duoPaper"),
-  duoInk: document.getElementById("duoInk")
+  duoInk: document.getElementById("duoInk"),
+  consentBanner: document.getElementById("consentBanner"),
+  consentAccept: document.getElementById("consentAccept"),
+  consentDecline: document.getElementById("consentDecline")
 };
-
 const DEFAULT_GLYPH_VALUES = [" ", ".", ",", "-", "+", "%", "o", "&", "@", "W"];
 const GLYPH_SPACE_DISPLAY = "␣";
 
@@ -297,6 +346,7 @@ function syncControls() {
 }
 
 function scheduleRender() {
+  saveSettings();
   updateLabels();
   drawToneStrip();
   if (!state.autoRender) {
@@ -1112,6 +1162,7 @@ function handleFile(file) {
       state.fileName = file.name;
       drawPreview();
       renderMosaic();
+      trackEvent('image_upload', { file_name: file.name });
     })
     .catch(() => {
       setStatus("Image could not be loaded");
@@ -1188,6 +1239,7 @@ function exportPng() {
     if (!blob) return;
     downloadBlob(blob, exportFileName("png"));
     setStatus(`PNG exported at ${exportCanvas.width} x ${exportCanvas.height}`);
+    trackEvent('image_export', { format: 'PNG', pixels: exportCanvas.width * exportCanvas.height });
   }, "image/png");
 }
 
@@ -1241,6 +1293,7 @@ function exportSvg() {
   if (!state.cells.length) renderMosaic();
   const width = els.outputCanvas.width;
   const height = els.outputCanvas.height;
+  trackEvent('image_export', { format: 'SVG', pixels: width * height });
   const customTileCache = new Map();
   const parts = [
     `<?xml version="1.0" encoding="UTF-8"?>`,
@@ -1318,6 +1371,7 @@ function resetControls() {
   });
   syncControls();
   scheduleRender();
+  trackEvent('reset', { source: 'button' });
 }
 
 function bindEvents() {
@@ -1357,29 +1411,35 @@ function bindEvents() {
     state.cellSize = options[index] || state.cellSize;
     state.maxOutput = snapCanvasSize(state.maxOutput, state.cellSize);
     scheduleRender();
+    debouncedTrack('parameter_adjust', { parameter: 'cellSize' });
   });
 
   els.maxOutput.addEventListener("input", () => {
     state.maxOutput = snapCanvasSize(els.maxOutput.value, state.cellSize);
     scheduleRender();
+    debouncedTrack('parameter_adjust', { parameter: 'maxOutput' });
   });
 
   [els.contrast, els.brightness, els.gamma, els.colorStrength].forEach((input) => {
     input.addEventListener("input", () => {
       state[input.id] = Number(input.value);
       scheduleRender();
+      debouncedTrack('parameter_adjust', { parameter: input.id });
     });
   });
 
   els.exportScale.addEventListener("input", () => {
     state.exportScale = Number(els.exportScale.value);
     updateLabels();
+    saveSettings();
+    debouncedTrack('parameter_adjust', { parameter: 'exportScale' });
   });
 
   [els.duoPaper, els.duoInk].forEach((input) => {
     input.addEventListener("input", () => {
       state[input.id] = input.value;
       scheduleRender();
+      debouncedTrack('parameter_adjust', { parameter: input.id });
     });
   });
 
@@ -1387,6 +1447,7 @@ function bindEvents() {
     input.addEventListener("change", () => {
       state[input.id] = input.checked;
       scheduleRender();
+      trackEvent('toggle_change', { setting: input.id, enabled: input.checked });
     });
   });
 
@@ -1396,6 +1457,7 @@ function bindEvents() {
       if (state.mode === "pixelate") state.mode = state.lastTileRenderMode || defaults.mode;
       syncControls();
       scheduleRender();
+      trackEvent('tile_pack_change', { pack: state.pack });
     });
   });
 
@@ -1409,6 +1471,7 @@ function bindEvents() {
       }
       syncControls();
       scheduleRender();
+      trackEvent('render_mode_change', { mode: state.mode });
     });
   });
 
@@ -1444,11 +1507,36 @@ function bindEvents() {
   els.statusText.addEventListener("mouseleave", () => {
     els.statusText.classList.remove("is-visible");
   });
+
+  els.consentAccept.addEventListener("click", () => {
+    gtag('consent', 'update', {
+      'analytics_storage': 'granted'
+    });
+    localStorage.setItem('consent', 'accepted');
+    els.consentBanner.classList.add('is-hidden');
+    trackEvent('consent', { choice: 'accepted' });
+  });
+
+  els.consentDecline.addEventListener("click", () => {
+    localStorage.setItem('consent', 'declined');
+    els.consentBanner.classList.add('is-hidden');
+    trackEvent('consent', { choice: 'declined' });
+  });
+
+  if (localStorage.getItem('consent') === 'accepted') {
+    gtag('consent', 'update', {
+      'analytics_storage': 'granted'
+    });
+    els.consentBanner.classList.add('is-hidden');
+  } else if (localStorage.getItem('consent') === 'declined') {
+    els.consentBanner.classList.add('is-hidden');
+  }
 }
 
 async function init() {
   bindEvents();
   syncControls();
+  loadSettings();
   drawToneStrip();
   try {
     state.image = await loadDefaultImage();
