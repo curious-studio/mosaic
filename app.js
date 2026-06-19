@@ -1027,10 +1027,14 @@ function drawTileCell(context, cell, scale = 1) {
   const tileWidth = rotation % 180 === 0 ? width : Math.max(width, height);
   const tileHeight = rotation % 180 === 0 ? height : Math.max(width, height);
 
-  context.fillStyle = rgb(base);
-  context.fillRect(x, y, width, height);
-
   if (state.mode === "pixelate") {
+    const l = (0.2126 * base[0] + 0.7152 * base[1] + 0.0722 * base[2]) / 255;
+    const curved = applyToneCurve(l);
+    const adjusted = l > 0
+      ? base.map(c => Math.min(255, Math.max(0, Math.round(c * (curved / l)))))
+      : [Math.round(curved * 255), Math.round(curved * 255), Math.round(curved * 255)];
+    context.fillStyle = rgb(adjusted);
+    context.fillRect(x, y, width, height);
     if (state.showGrid) {
       context.strokeStyle = "rgba(255, 255, 255, 0.42)";
       context.lineWidth = Math.max(1, Math.round(scale));
@@ -1038,6 +1042,9 @@ function drawTileCell(context, cell, scale = 1) {
     }
     return;
   }
+
+  context.fillStyle = rgb(base);
+  context.fillRect(x, y, width, height);
 
   if (rotation) {
     context.save();
@@ -1202,7 +1209,7 @@ function timestampSlug(date = new Date()) {
 }
 
 function exportFileName(extension) {
-  return `Mosaic-${safeName()}mosaic-${timestampSlug()}.${extension}`;
+  return `Mosaic-${safeName()}-${timestampSlug()}.${extension}`;
 }
 
 function renderPngExportCanvas() {
@@ -1310,14 +1317,20 @@ function exportSvg() {
     const tileX = (cell.width - tileWidth) / 2;
     const tileY = (cell.height - tileHeight) / 2;
     parts.push(`<g transform="translate(${cell.x} ${cell.y})">`);
-    parts.push(`<rect width="${cell.width}" height="${cell.height}" fill="${rgb(base)}" />`);
     if (state.mode === "pixelate") {
+      const l = (0.2126 * base[0] + 0.7152 * base[1] + 0.0722 * base[2]) / 255;
+      const curved = applyToneCurve(l);
+      const adjusted = l > 0
+        ? base.map(c => Math.min(255, Math.max(0, Math.round(c * (curved / l)))))
+        : [Math.round(curved * 255), Math.round(curved * 255), Math.round(curved * 255)];
+      parts.push(`<rect width="${cell.width}" height="${cell.height}" fill="${rgb(adjusted)}" />`);
       if (state.showGrid) {
         parts.push(`<rect width="${cell.width}" height="${cell.height}" fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.42" stroke-width="1" />`);
       }
       parts.push(`</g>`);
       return;
     }
+    parts.push(`<rect width="${cell.width}" height="${cell.height}" fill="${rgb(base)}" />`);
     parts.push(`<svg width="${cell.width}" height="${cell.height}" viewBox="0 0 ${cell.width} ${cell.height}" overflow="hidden">`);
     if (rotation) {
       parts.push(`<g transform="translate(${cell.width / 2} ${cell.height / 2}) rotate(${rotation}) translate(${-cell.width / 2} ${-cell.height / 2})">`);
